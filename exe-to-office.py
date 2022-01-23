@@ -9,7 +9,7 @@
 # NOTICE: Use it only for educational purposes, do not distribute or use it for a malicious payload delivery
 # to another users. Just for self-practicing!
 #
-# Usage: python exe-to-xlsm.py -i input.exe --xlsm dropper.xlsm
+# Usage: python exe-to-office.py -i input.exe --xlsm dropper.xlsm
 #
 # Result will be saved to "./out" directory
 #

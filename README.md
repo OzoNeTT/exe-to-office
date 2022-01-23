@@ -9,8 +9,8 @@ Simple python script to create xlsm or docm dropper of given executable file. Yo
 ## 📺 How to use
 
 ```console
-python3 exe-to-xlsm.py -i input_file.exe --xlsm output_document.xlsm
-python3 exe-to-xlsm.py -i input_file.exe --docm
+python3 exe-to-office.py -i input_file.exe --xlsm output_document.xlsm
+python3 exe-to-office.py -i input_file.exe --docm
 ```
 
 ## ❗ Notice 
@@ -20,7 +20,7 @@ This script can be used to deliver potential dangerous software, so use it only 
 - Do not distribute
 - Do not use for malicious purposes
 
-## Supported formats:
+## 👀 Supported formats:
 
 - xlsm - working perfect (need macro eneble on guest)
 - docm - current test shows, that macro is not running on document opening
