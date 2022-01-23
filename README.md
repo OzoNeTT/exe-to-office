@@ -1,10 +1,10 @@
-# 🎁 Exe To xlsm/docm
+# 🎁 Exe To Office
 
-Executable file injection to Office documents: `.xlsm`, `.docm`
+Executable file injection to Office documents: `.xlsm`, `.docm`, `.pptm`
 
 ## 📄 Description
 
-Simple python script to create xlsm or docm dropper of given executable file. You can change code or expand it for another Office extensions
+Simple python script to createm office dropper of given executable file. You can change code or expand it for another Office extensions
 
 ## 📺 How to use
 
@@ -22,7 +22,8 @@ This script can be used to deliver potential dangerous software, so use it only 
 
 ## 👀 Supported formats:
 
-- xlsm - working perfect (need macro eneble on guest)
-- docm - current test shows, that macro is not running on document opening
+- xlsm - working perfect (need macro enable on guest)
+- docm - working perfect (need macro enable on guest)
+- pptm - in progress (auto-open macro needed)
 
 # 💎 Version  0.2 💎

